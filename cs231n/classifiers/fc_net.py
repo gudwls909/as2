@@ -47,6 +47,10 @@ class TwoLayerNet(object):
         # and biases using the keys 'W1' and 'b1' and second layer                 #
         # weights and biases using the keys 'W2' and 'b2'.                         #
         ############################################################################
+        self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dim)
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = weight_scale * np.random.randn(hidden_dim, num_classes)
+        self.params['b2'] = np.zeros(num_classes)
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -77,6 +81,12 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+        reg = self.reg
+        S1_relu, cache1 = affine_relu_forward(X.reshape(X.shape[0],-1), W1, b1)
+        S2, cache2 = affine_forward(S1_relu, W2, b2)
+        scores = S2        
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -97,6 +107,16 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
+        loss, dscores = softmax_loss(scores, y)
+        loss += 0.5 * reg * np.sum(W1 * W1)
+        loss += 0.5 * reg * np.sum(W2 * W2)
+        
+        dS1_relu, dW2, db2 = affine_backward(dscores, cache2)
+        _, dW1, db1 = affine_relu_backward(dS1_relu, cache1)
+        grads["W1"] = dW1 + reg * W1
+        grads["W2"] = dW2 + reg * W2
+        grads["b1"] = db1
+        grads["b2"] = db2
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #

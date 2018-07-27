@@ -27,7 +27,7 @@ def affine_forward(x, w, b):
     ###########################################################################
     N = x.shape[0]
     x_flat = np.reshape(x,(N,-1))
-    out = x.dot(w) + b
+    out = x_flat.dot(w) + b
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -57,6 +57,9 @@ def affine_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
+    dx = dout.dot(w.T).reshape(x.shape)
+    dw = x.reshape(x.shape[0],-1).T.dot(dout)
+    db = dout.sum(axis=0)
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #

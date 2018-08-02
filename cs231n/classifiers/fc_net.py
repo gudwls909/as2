@@ -162,7 +162,7 @@ class FullyConnectedNet(object):
           this datatype. float32 is faster but less accurate, so you should use
           float64 for numeric gradient checking.
         - seed: If not None, then pass this random seed to the dropout layers. This
-          will make the dropout layers deteriminstic so we can gradient check the
+          will make the dropout layers deteriministic so we can gradient check the
           model.
         """
         self.normalization = normalization
@@ -184,6 +184,21 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
+        all_dims = [input_dim] + hidden_dims + [num_classes]
+        for idx in range(self.num_layers):
+            nrow = all_dims[idx]
+            ncol = all_dims[idx+1]
+            
+            layer_name = "%d" % (idx+1)
+            weight_name = "W" + layer_name
+            bias_name = "b" + layer_name
+            self.params[weight_name] = weight_scale * np.random.randn(nrow, ncol)
+            self.params[bias_name] = weight_scale * np.zeros(ncol)
+            
+            if normalization and idx < (self.num_layers - 1):
+                self.params["gamma" + layer_name] = np.ones(ncols)
+                self.params["beta" + layer_name] = np.zeros(ncols)
+            
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -243,6 +258,35 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
+        caches = {}
+        scores = X
+        
+        for i in range(1, self.num_layers+1):
+            layer_name = "%d" % i
+            W_name = "W" + layer_name
+            b_name = "b" + layer_name
+            gamma_name = "gamma" + layer_name
+            beta_name = "beta" + layer_name
+            dropout_name = "dropout" + layer_name
+            cache_name = "cache" + layer_name
+            
+            if i == self.num_layers:
+                scores, cache = affine_forward(scores, self.params[W_name], self.params[b_name])
+                pass
+            else:
+                if self.normalization:
+                    scores, cache0 = affine_forward(scores, self.params[W_name], self.params[b_name])
+                    scores, cache1 = batchnorm_forward(scores, self.params[gamma_name], self.params[beta_name], self.bn_params[i-1])
+                    scores, cache2 = relu_forward(scores)
+                    cache = (cache0, cache1, cache2)
+                else:
+                    scores, cache = affine_relu_forward(scores, self.params[W_name], self.params[b_name])
+                    
+                if self.use_dropout:
+                    scores, caches[dropout_name] = dropout_forward(scores, self.dropout_param)
+                
+            caches[cache_name] = cache
+                    
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -266,6 +310,35 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
+        
+        loss, der = softmax_loss(scores, y)
+        
+        for i in range(self.num_layers, 0, -1):
+            layer_name = "%d" % i
+            W_name = "W" + layer_name
+            b_name = "b" + layer_name
+            gamma_name = "gamma" + layer_name
+            beta_name = "beta" + layer_name
+            dropout_name = "dropout" + layer_name
+            cache_name = "cache" + layer_name
+            
+            loss += 0.5 * self.reg * (self.params[W_name] ** 2).sum()
+            
+            if(self.num_layers == i):
+                der, grads[W_name], grads[b_name] = affine_backward(der, caches[cache_name])
+            else:
+                if self.use_dropout:
+                    der = dropout_backward(der, caches[dropout_name])
+                
+                if self.normalization:
+                    der = relu_backward(der, caches[cache_name][2])
+                    der, grads[gamma_name], grads[beta_name] = batchnorm_backward(der, caches[cache_name][1])
+                    der, grads[W_name], grads[b_name] = affine_backward(der, caches[cache_name][0])
+                else:
+                    der, grads[W_name], grads[b_name] = affine_relu_backward(der, caches[cache_name])
+                    
+            grads[W_name] += self.reg * self.params[W_name]
+        
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #

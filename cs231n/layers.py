@@ -185,6 +185,23 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
+        cache = {}
+        sample_mean = np.mean(x, axis=0)
+        sample_var = np.var(x, axis=0)
+        
+        x_hat = (x - sample_mean) / np.sqrt(sample_var + eps)
+        out = gamma * x_hat + beta
+        
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
+        
+        cache['x'] = x
+        cache['x_hat'] = x_hat
+        cache['gamma'] = gamma
+        cache['sample_mean'] = sample_mean
+        cache['sample_var'] = sample_var
+        cache['eps'] = eps
+                
         pass
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -196,6 +213,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
+        out = ((x - running_mean) / np.sqrt(running_var)) * gamma + beta
         pass
         #######################################################################
         #                          END OF YOUR CODE                           #
@@ -234,6 +252,23 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * cache['x_hat'], axis=0)
+    
+    x = cache['x']
+    N = float(x.shape[0])
+    mean = cache['sample_mean']
+    var = cache['sample_var']
+    eps = cache['eps']
+    gamma = cache['gamma']
+    
+    dx_hat = dout * gamma
+    dvar = np.sum(dx_hat * -0.5 * (X-mean) * (var+eps) ** (-1.5), axis=0)
+    dmean = np.sum(dx_hat * -1/np.sqrt(var+eps), axis=0) \
+                + dvar * -2 * np.sum(X-mean, axis=0) / N
+    dx = dout * 1/np.sqrt(var+eps) \
+        + dvar * 2.0 * np.sum(X-mean) / N \
+        + dmean / N
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -383,6 +418,9 @@ def dropout_forward(x, dropout_param):
         # TODO: Implement training phase forward pass for inverted dropout.   #
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
+        mask = (np.random.rand(*x.shape) < p) / p
+        out = x * mask
+        
         pass
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -391,6 +429,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # TODO: Implement the test phase forward pass for inverted dropout.   #
         #######################################################################
+        out = x
         pass
         #######################################################################
         #                            END OF YOUR CODE                         #
@@ -418,6 +457,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # TODO: Implement training phase backward pass for inverted dropout   #
         #######################################################################
+        dx = dout * mask
         pass
         #######################################################################
         #                          END OF YOUR CODE                           #

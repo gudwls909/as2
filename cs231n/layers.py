@@ -263,11 +263,11 @@ def batchnorm_backward(dout, cache):
     gamma = cache['gamma']
     
     dx_hat = dout * gamma
-    dvar = np.sum(dx_hat * -0.5 * (X-mean) * (var+eps) ** (-1.5), axis=0)
+    dvar = np.sum(dx_hat * -0.5 * (x-mean) * (var+eps) ** (-1.5), axis=0)
     dmean = np.sum(dx_hat * -1/np.sqrt(var+eps), axis=0) \
-                + dvar * -2 * np.sum(X-mean, axis=0) / N
+                + dvar * -2 * np.sum(x-mean, axis=0) / N
     dx = dout * 1/np.sqrt(var+eps) \
-        + dvar * 2.0 * np.sum(X-mean) / N \
+        + dvar * 2.0 * np.sum(x-mean) / N \
         + dmean / N
     pass
     ###########################################################################

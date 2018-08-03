@@ -196,8 +196,8 @@ class FullyConnectedNet(object):
             self.params[bias_name] = weight_scale * np.zeros(ncol)
             
             if normalization and idx < (self.num_layers - 1):
-                self.params["gamma" + layer_name] = np.ones(ncols)
-                self.params["beta" + layer_name] = np.zeros(ncols)
+                self.params["gamma" + layer_name] = np.ones(ncol)
+                self.params["beta" + layer_name] = np.zeros(ncol)
             
         pass
         ############################################################################

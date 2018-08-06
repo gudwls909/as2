@@ -274,11 +274,16 @@ class FullyConnectedNet(object):
                 scores, cache = affine_forward(scores, self.params[W_name], self.params[b_name])
                 pass
             else:
-                if self.normalization:
+                if self.normalization == 'batchnorm':
                     scores, cache0 = affine_forward(scores, self.params[W_name], self.params[b_name])
                     scores, cache1 = batchnorm_forward(scores, self.params[gamma_name], self.params[beta_name], self.bn_params[i-1])
                     scores, cache2 = relu_forward(scores)
                     cache = (cache0, cache1, cache2)
+                elif self.normalization == 'layernorm':
+                    scores, cache0 = affine_forward(scores, self.params[W_name], self.params[b_name])
+                    scores, cache1 = layernorm_forward(scores, self.params[gamma_name], self.params[beta_name], self.bn_params[i-1])
+                    scores, cache2 = relu_forward(scores)
+                    cache = (cache0, cache1, cache2)    
                 else:
                     scores, cache = affine_relu_forward(scores, self.params[W_name], self.params[b_name])
                     
@@ -330,9 +335,13 @@ class FullyConnectedNet(object):
                 if self.use_dropout:
                     der = dropout_backward(der, caches[dropout_name])
                 
-                if self.normalization:
+                if self.normalization == 'batchnorm':
                     der = relu_backward(der, caches[cache_name][2])
                     der, grads[gamma_name], grads[beta_name] = batchnorm_backward(der, caches[cache_name][1])
+                    der, grads[W_name], grads[b_name] = affine_backward(der, caches[cache_name][0])
+                elif self.normalization == 'layernorm':
+                    der = relu_backward(der, caches[cache_name][2])
+                    der, grads[gamma_name], grads[beta_name] = layernorm_backward(der, caches[cache_name][1])
                     der, grads[W_name], grads[b_name] = affine_backward(der, caches[cache_name][0])
                 else:
                     der, grads[W_name], grads[b_name] = affine_relu_backward(der, caches[cache_name])

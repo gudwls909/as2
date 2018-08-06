@@ -263,12 +263,14 @@ def batchnorm_backward(dout, cache):
     gamma = cache['gamma']
     
     dx_hat = dout * gamma
+    
     dvar = np.sum(dx_hat * -0.5 * (x-mean) * (var+eps) ** (-1.5), axis=0)
     dmean = np.sum(dx_hat * -1/np.sqrt(var+eps), axis=0) \
-                + dvar * -2 * np.sum(x-mean, axis=0) / N
-    dx = dout * 1/np.sqrt(var+eps) \
-        + dvar * 2.0 * np.sum(x-mean) / N \
+                + dvar * -2 * np.sum(x-mean) / N
+    dx = dx_hat * 1/np.sqrt(var+eps) \
+        + dvar * 2.0 * (x-mean) / N \
         + dmean / N
+    
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -300,6 +302,29 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a     #
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
+    x = cache['x']
+    x_hat = cache['x_hat']
+    N = float(x.shape[0])
+    mean = cache['sample_mean']
+    var = cache['sample_var']
+    eps = cache['eps']
+    gamma = cache['gamma']
+    
+    dx_hat = dout * gamma
+    
+    #dvar = np.sum(dx_hat * -0.5 * (x-mean) * (var+eps) ** (-1.5), axis=0)
+    #dmean = np.sum(dx_hat * -1/np.sqrt(var+eps), axis=0) \
+    #            + dvar * -2 * np.sum(x-mean) / N
+    #dx = dx_hat * 1/np.sqrt(var+eps) \
+    #    + dvar * 2.0 * (x-mean) / N \
+    #    + dmean / N
+    # 이건 더 세세하게 정리안한 간단한 식 버젼
+    
+    dgamma = np.sum(dout * x_hat, axis=0)
+    dbeta = np.sum(dout, axis=0)
+    dx = (1./N) * (var+eps)**(-0.5) * (N*dx_hat - np.sum(dx_hat, axis=0) - x_hat*np.sum(dx_hat*x_hat, axis=0))
+    #https://kevinzakka.github.io/2016/09/14/batch_normalization/
+    
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -342,10 +367,36 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
+    eps = ln_param.get('eps', 1e-5)
+    momentum = ln_param.get('momentum', 0.9)
+
+    N, D = x.shape
+    running_mean = ln_param.get('running_mean', np.zeros(N, dtype=x.dtype))
+    running_var = ln_param.get('running_var', np.zeros(N, dtype=x.dtype))
+
+    out, cache = None, None
+    cache = {}
+    sample_mean = np.mean(x, axis=1)[:,np.newaxis]
+    sample_var = np.var(x, axis=1)[:,np.newaxis]
+
+    x_hat = (x - sample_mean) / np.sqrt(sample_var + eps)
+    out = gamma * x_hat + beta
+
+    running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+    running_var = momentum * running_var + (1 - momentum) * sample_var
+
+    cache['x'] = x
+    cache['x_hat'] = x_hat
+    cache['gamma'] = gamma
+    cache['sample_mean'] = sample_mean
+    cache['sample_var'] = sample_var
+    cache['eps'] = eps
+
     pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    # Store the updated running means back into bn_param
+    ln_param['running_mean'] = running_mean
+    ln_param['running_var'] = running_var
+
     return out, cache
 
 
@@ -373,6 +424,30 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
+    
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * cache['x_hat'], axis=0)
+    
+    x = cache['x']
+    N = float(x.shape[1])
+    mean = cache['sample_mean']
+    var = cache['sample_var']
+    eps = cache['eps']
+    gamma = cache['gamma']
+    
+    dx_hat = dout * gamma
+    
+    dvar = np.sum(dx_hat * -0.5 * (x-mean) * (var+eps) ** (-1.5), axis=1)
+    dmean = np.sum(dx_hat * -1/np.sqrt(var+eps), axis=1) \
+                + dvar * -2 * np.sum(x-mean) / N
+    
+    dvar = dvar[:,np.newaxis]
+    dmean = dmean[:,np.newaxis]
+    
+    dx = dx_hat * 1/np.sqrt(var+eps) \
+        + dvar * 2.0 * (x-mean) / N \
+        + dmean / N
+    
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
